@@ -14,6 +14,12 @@
 - `whitelist_patch.sh` 不再硬编码包名，改为从 `config.sh` 读取
 - README 重写兼容性章节，给出支持 / 需实测 / 不支持三档对照
 
+### 文档
+
+- README 新增「支持的 Root 管理器」章节：明确兼容 Magisk / KernelSU / APatch
+- 说明模块未使用任何 Magisk 独有特性，模块目录同为 `/data/adb/modules/`
+- 补充 `restorecon` 缺失时的容错说明
+
 ## v1.0
 
 首个版本。

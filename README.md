@@ -115,6 +115,8 @@ SELinux: u:object_r:app_data_file:s0:c512,c768
 
 三项任一不对，SystemUI 读到的就是旧值或空值。脚本里用 `chown` / `chmod` / `restorecon` 严格同步。
 
+> `restorecon` 在部分精简 ROM 或 KernelSU 环境下可能不存在，脚本已做容错（失败不报错），此时 SELinux context 会继承父目录，通常不影响功能。
+
 #### ③ 必须重启 SystemUI
 
 ```java
@@ -147,16 +149,28 @@ public final java.util.List<java.lang.String> getRusWhiteList() {
 
 ## 安装
 
+### 支持的 Root 管理器
+
+本模块只用 Magisk 模块规范的**基础能力**（`module.prop` + `post-fs-data.sh` + `service.sh` + `uninstall.sh`），不依赖任何 Magisk 独有特性（无 Zygisk、无 `$MAGISKTMP`、无 `magisk --clone`），因此各主流管理器都可用：
+
+| Root 管理器 | 状态 | 说明 |
+|---|---|---|
+| **Magisk** | ✅ | 本项目验证环境 |
+| **KernelSU / KSU Next** | ✅ | 支持 Magisk 模块规范，模块目录同为 `/data/adb/modules/` |
+| **APatch** | ✅ | 同上 |
+
+无需修改任何东西，直接刷 zip 即可。
+
 ### 前置条件
 
-- **已 Root**（Magisk / KernelSU / APatch）
+- **已 Root**（Magisk / KernelSU / APatch，见上表）
 - **ColorOS 系系统 14–17**（ColorOS / OxygenOS / realme UI，详见下方「兼容性」章节）
 - 目标 App 使用标准 Android MediaSession
 
 ### 步骤
 
 1. 下载 `trim_music_fluid_cloud.zip`
-2. 打开 Magisk → 模块 → 从本地安装 → 选择 zip
+2. 打开你的 Root 管理器（Magisk / KernelSU / APatch）→ 模块 → 从本地安装 → 选择 zip
 3. 重启手机
 
 重启后播放任意歌曲，状态栏应出现流体云胶囊。
@@ -183,7 +197,7 @@ su -c 'grep -c com.trim.music /data/user_de/0/com.android.systemui/shared_prefs/
 
 ## 卸载
 
-在 Magisk 中移除模块并重启即可。
+在你的 Root 管理器（Magisk / KernelSU / APatch）中移除模块并重启即可。
 
 `uninstall.sh` 会终止后台守护进程。**注意：白名单里已写入的 `com.trim.music` 不会被自动删除**（无害，不影响其它 App）。
 
