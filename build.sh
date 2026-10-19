@@ -28,6 +28,8 @@ zip -r "$ZIP" \
     watchdog.sh \
     uninstall.sh \
     customize.sh \
+    config.sh \
+    check_env.sh \
     -x '.*' \
     -x '*.md' \
     -x 'dist/*'

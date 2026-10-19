@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# 公用函数：确保 com.trim.music 存在于 SystemUI 媒体流体云白名单
+# 公用函数：确保目标包名存在于 SystemUI 媒体流体云白名单
 #
 # 目标文件: /data/user_de/0/com.android.systemui/shared_prefs/oplus_media_controller_config_sp.xml
 # 结构:
@@ -12,19 +12,30 @@
 #
 # SystemUI 解析逻辑 (OplusMediaRusUpdateManager.getLocalDataToSP):
 #   先把 "[" "]" " " 全部替换成空串，再按 "," 拆分。
-#   所以分隔符必须是 ", "（逗号+空格）；若写成单纯的 ","，上一个包名会吞掉下一个包名。
+#   所以分隔符必须写成 ", "（逗号+空格）；若写成 " ," 之类，会吞掉前一个包名。
 #
 # 本脚本不 exit，可被 . source 或被 sh 调用。
+#
+# 可通过环境变量覆盖:
+#   TARGET=/path/to/config.sh   自定义配置文件（不改脚本本身即可适配其它 App）
 
 SP=/data/user_de/0/com.android.systemui/shared_prefs/oplus_media_controller_config_sp.xml
-TARGET=com.trim.music
-SUID=10203   # com.android.systemui 的 uid/gid
+
+# 载入配置（若存在 config.sh 则覆盖默认值）
+_CFG="${TARGET:-${0%/*}/config.sh}"
+[ -f "$_CFG" ] && . "$_CFG"
+
+: "${TARGET_PKG:=com.trim.music}"
+: "${SUID:=10203}"   # com.android.systemui 的固定 uid/gid，全设备一致，无需修改
+
+TARGET="$TARGET_PKG"
 
 _log() { echo "[TrimMusicFluid] $*"; }
 
 _patch_whitelist() {
   if [ ! -f "$SP" ]; then
     _log "SP 不存在，跳过: $SP"
+    _log "（本机可能不是 ColorOS，或不支持媒体流体云）"
     return 0
   fi
 
@@ -42,7 +53,7 @@ _patch_whitelist() {
     return 1
   fi
 
-  # 校验：插入后必须同时存在目标包名
+  # 校验：插入后必须同时存在目标包名和闭合标签
   if ! grep -q "$TARGET" "$_tmp" 2>/dev/null; then
     _log "插入校验失败，放弃写入"
     rm -f "$_tmp"

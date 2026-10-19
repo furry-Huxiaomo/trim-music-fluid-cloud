@@ -150,8 +150,8 @@ public final java.util.List<java.lang.String> getRusWhiteList() {
 ### 前置条件
 
 - **已 Root**（Magisk / KernelSU / APatch）
-- **ColorOS** 系统（本模块针对 ColorOS 15 / Android 15 验证，理论上 ColorOS 14+ 通用）
-- 目标 App 包名为 `com.trim.music`
+- **ColorOS 系系统 14–17**（ColorOS / OxygenOS / realme UI，详见下方「兼容性」章节）
+- 目标 App 使用标准 Android MediaSession
 
 ### 步骤
 
@@ -162,6 +162,16 @@ public final java.util.List<java.lang.String> getRusWhiteList() {
 重启后播放任意歌曲，状态栏应出现流体云胶囊。
 
 ### 验证是否生效
+
+**方式一：装模块前后跑自检脚本**
+
+```bash
+su -c sh check_env.sh
+```
+
+逐项检查 Root、系统、流体云组件、白名单结构、目标 App、模块状态，最后给结论。
+
+**方式二：直接看白名单**
 
 ```bash
 su -c 'grep -c com.trim.music /data/user_de/0/com.android.systemui/shared_prefs/oplus_media_controller_config_sp.xml'
@@ -191,7 +201,9 @@ su -c 'pkill -f com.android.systemui'
 | 文件 | 作用 |
 |---|---|
 | `module.prop` | Magisk 模块元信息 |
+| `config.sh` | 目标包名配置（想适配其它 App 改这里） |
 | `whitelist_patch.sh` | 核心补丁。幂等，可独立运行或被 source |
+| `check_env.sh` | 环境自检，诊断本机是否支持 |
 | `post-fs-data.sh` | 挂载阶段执行一次（此时 SystemUI 尚未启动） |
 | `service.sh` | 等待 `sys.boot_completed=1` 后执行补救 + 拉起守护进程 |
 | `watchdog.sh` | 每 5 秒轮询，白名单被覆盖时自动补回 |
@@ -208,18 +220,86 @@ su -c 'pkill -f com.android.systemui'
 
 ---
 
-## 适用范围与限制
+## 兼容性
 
-### 可以用的场景
+### 判定原则：只看系统，不看品牌
 
-- 你自己 Root 过的 OPPO / OnePlus / realme 设备
-- 任何包名为 `com.trim.music` 的音乐 App
+OPPO、一加、realme 同属一家，共用同一套系统底层。它们的中文版系统（ColorOS / OxygenOS / realme UI）都是同一个东西的不同叫法，SystemUI、流体云组件、白名单结构完全一致。
 
-### 不适用的场景
+所以本模块的兼容性判断只看两件事：
 
-- **未 Root 的设备**——无法访问 SystemUI 私有数据
-- **想给其他用户使用**——每个用户都需要自己 Root 并装模块
-- **非 ColorOS 系统**——白名单机制是 OPPO 独有的
+1. 系统里有没有 **`com.oplus.mediacontroller`**（流体云组件）
+2. 白名单文件的**路径与字段结构**是否匹配
+
+两者都满足就能用，与设备叫 OPPO 还是一加无关。
+
+### ✅ 支持：ColorOS 系 14–17
+
+| 系统版本 | 状态 |
+|---|---|
+| **ColorOS 14** | 支持 |
+| **ColorOS 15** | 支持（本项目验证环境） |
+| **ColorOS 16** | 支持 |
+| **ColorOS 17** | 支持 |
+
+适用于基于该系统的 OPPO / 一加 / realme 中文版机型。
+
+### ⚠️ 需实测
+
+| 情况 | 说明 |
+|---|---|
+| **ColorOS 13 及更早** | 早期实现不同，白名单机制可能不适用 |
+| **海外版（无媒体流体云）** | 部分海外机型没有 `com.oplus.mediacontroller` |
+
+这类设备装上去**不会报错也不会损坏系统**：脚本发现文件不存在会直接跳过，只会没效果。
+
+### ❌ 不支持
+
+| 系统 | 原因 |
+|---|---|
+| **小米 / 红米（HyperOS）** | 「焦点通知」是小米自研机制 |
+| **vivo / iQOO（OriginOS）** | 「原子通知」是另一套实现 |
+| **华为 / 荣耀（鸿蒙）** | 「实况窗」是另一套实现 |
+| **原生 Android / 类原生 ROM** | 没有流体云功能 |
+| **未 Root 的设备** | 无法访问 SystemUI 私有数据 |
+
+各家的「类流体云」功能虽然长得像，但内部实现完全不同。
+
+### 自检：不用猜，直接跑
+
+```bash
+su -c sh check_env.sh
+```
+
+逐项检查 Root、系统版本、流体云组件、白名单结构、目标 App、模块状态，最后给结论。
+
+输出示例（本项目验证机）：
+
+```
+[2/5] 系统识别
+  ✓ ColorOS 系系统（V15.0.0）
+    Android 15 · 区域 cn
+  ✓ ColorOS 15 在支持范围内（14–17）
+
+[3/5] 媒体流体云机制
+  ✓ com.oplus.mediacontroller 已就位
+  ✓ 白名单文件存在
+  ✓ 含 rus_content_key 字段（结构匹配）
+```
+
+### 支持其它音乐 App
+
+不限于飞牛音乐。编辑 `config.sh` 改一行即可：
+
+```sh
+TARGET_PKG=com.example.music    # 换成目标 App 的包名
+```
+
+前提是目标 App 使用**标准 Android MediaSession**（即至少能在系统媒体控制中心里正常显示）。查询包名：
+
+```bash
+pm list packages | grep -i music
+```
 
 ### 关于「让 App 官方适配」
 
@@ -238,7 +318,7 @@ su -c 'pkill -f com.android.systemui'
 ## 致谢
 
 - 本项目由 **DeepSeek** 编写
-- 逆向分析基于 ColorOS 15（`V15.0.0`，Android 15，PGZ110）实机
+- 逆向分析基于 ColorOS 15（`V15.0.0`，Android 15）实机验证
 
 ---
 
